@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Key Management</title>
+</head>
+<body>
+    <div id="login-section">
+        <h2>Login</h2>
+        <form id="login-form">
+            <input type="text" id="username" placeholder="Username" required><br><br>
+            <input type="password" id="password" placeholder="Password" required><br><br>
+            <button type="submit">Login</button>
+        </form>
+        <p id="login-error" style="color: red; display: none;">Invalid credentials</p>
+    </div>
+
+    <div id="key-management-section" style="display: none;">
+        <h2>Generate Key</h2>
+        <input type="text" id="new-key" placeholder="Enter key"><br><br>
+        <button id="create-key">Create Key</button>
+        <h3>Key List</h3>
+        <ul id="key-list"></ul>
+        <button id="logout" style="margin-top: 20px;">Logout</button>
+    </div>
+
+    <script>
+        let loggedIn = false;
+
+        document.getElementById('login-form').onsubmit = async function (e) {
+            e.preventDefault();
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                body: JSON.stringify({ username, password }),
+                headers: { 'Content-Type': 'application/json' },
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                loggedIn = true;
+                document.getElementById('login-section').style.display = 'none';
+                document.getElementById('key-management-section').style.display = 'block';
+                fetchKeys();  // Load key list after login
+            } else {
+                document.getElementById('login-error').style.display = 'block';
+            }
+        };
+
+        async function fetchKeys() {
+            const response = await fetch('/api/generateKey');
+            const data = await response.json();
+            const keyList = document.getElementById('key-list');
+            keyList.innerHTML = '';
+            data.keys.forEach(key => {
+                const li = document.createElement('li');
+                li.textContent = key;
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = 'Delete';
+                deleteButton.onclick = async () => {
+                    await fetch(`/api/generateKey?delete=${key}`, { method: 'DELETE' });
+                    fetchKeys();  // refresh the list
+                };
+                li.appendChild(deleteButton);
+                keyList.appendChild(li);
+            });
+        }
+
+        document.getElementById('create-key').onclick = async () => {
+            const newKey = document.getElementById('new-key').value;
+            if (newKey) {
+                await fetch('/api/generateKey', {
+                    method: 'POST',
+                    body: JSON.stringify({ key: newKey }),
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                fetchKeys();  // refresh the list after creating a new key
+            }
+        };
+
+        document.getElementById('logout').onclick = () => {
+            loggedIn = false;
+            document.getElementById('login-section').style.display = 'block';
+            document.getElementById('key-management-section').style.display = 'none';
+        };
+    </script>
+</body>
+</html>
